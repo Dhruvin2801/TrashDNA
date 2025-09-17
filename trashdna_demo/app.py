@@ -1,80 +1,85 @@
 import streamlit as st
 from PIL import Image
 import torch
-from torchvision import models, transforms
+import clip
 
 # -----------------------
-# 1. Load pre-trained model
+# 1. Load CLIP model
 # -----------------------
 @st.cache(allow_output_mutation=True)
 def load_model():
-    model = models.resnet50(pretrained=True)
-    model.eval()
-    return model
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    model, preprocess = clip.load("ViT-B/32", device=device)
+    return model, preprocess, device
 
-model = load_model()
-
-# -----------------------
-# 2. Define preprocessing
-# -----------------------
-preprocess = transforms.Compose([
-    transforms.Resize(256),
-    transforms.CenterCrop(224),
-    transforms.ToTensor(),
-    transforms.Normalize(
-        mean=[0.485, 0.456, 0.406],
-        std=[0.229, 0.224, 0.225]
-    )
-])
+model, preprocess, device = load_model()
 
 # -----------------------
-# 3. Define material-bin mapping (simplified)
+# 2. Material classes
 # -----------------------
+material_classes = [
+    "Plastic bottle",
+    "Cardboard box",
+    "Foil pack",
+    "Paper bag",
+    "Metal can",
+    "Glass bottle",
+]
+
 material_bins = {
-    "plastic_bottle": ("Plastic", "Recycle Bin A"),
-    "cardboard_box": ("Paper/Cardboard", "Recycle Bin B"),
-    "foil_pack": ("Metal/Foil", "Recycle Bin C")
+    "Plastic bottle": ("Plastic", "Recycle Bin A"),
+    "Cardboard box": ("Paper/Cardboard", "Recycle Bin B"),
+    "Foil pack": ("Metal/Foil", "Recycle Bin C"),
+    "Paper bag": ("Paper/Cardboard", "Recycle Bin B"),
+    "Metal can": ("Metal/Foil", "Recycle Bin C"),
+    "Glass bottle": ("Glass", "Recycle Bin D"),
 }
 
 # -----------------------
-# 4. Streamlit UI
+# 3. Streamlit UI
 # -----------------------
-st.title("TrashDNA: AI Material Classification Demo")
-st.write("Upload an image of packaging to identify its material and the correct recycling bin.")
+st.set_page_config(page_title="TrashDNA: AI Material Classification", layout="wide")
+st.title("♻️ TrashDNA: Smart Recycling Demo")
+st.markdown(
+    "Upload any packaging image, and our AI will identify the material and suggest the correct recycling bin. Points awarded for each correct identification!"
+)
 
 uploaded_file = st.file_uploader("Choose an image...", type=["jpg", "jpeg", "png"])
 
 if uploaded_file is not None:
-    img = Image.open(uploaded_file)
+    img = Image.open(uploaded_file).convert("RGB")
     st.image(img, caption='Uploaded Image', use_column_width=True)
 
-    # Preprocess
-    input_tensor = preprocess(img).unsqueeze(0)
+    with st.spinner("Identifying material..."):
+        # Preprocess and predict using CLIP
+        image_input = preprocess(img).unsqueeze(0).to(device)
+        text_inputs = torch.cat([clip.tokenize(f"a photo of a {c}") for c in material_classes]).to(device)
 
-    # Predict
-    with torch.no_grad():
-        outputs = model(input_tensor)
-        _, predicted_idx = outputs.max(1)
-    
-    # Map predicted index to simplified label (for demo purposes)
-    # In practice, you can map more classes or train a custom dataset
-    # Here we just simulate mapping for demo images
-    filename = uploaded_file.name.lower()
-    if "plastic" in filename:
-        label = "plastic_bottle"
-    elif "cardboard" in filename:
-        label = "cardboard_box"
-    elif "foil" in filename:
-        label = "foil_pack"
-    else:
-        label = "unknown"
+        with torch.no_grad():
+            image_features = model.encode_image(image_input)
+            text_features = model.encode_text(text_inputs)
 
-    if label in material_bins:
-        material, bin_name = material_bins[label]
-        points = 10  # simple reward system
-        st.success(f"Predicted Material: **{material}**")
+            # Normalize
+            image_features /= image_features.norm(dim=-1, keepdim=True)
+            text_features /= text_features.norm(dim=-1, keepdim=True)
+
+            similarities = (100.0 * image_features @ text_features.T).softmax(dim=-1)
+            values, indices = similarities[0].topk(1)
+            predicted_material = material_classes[indices[0]]
+
+    # Display results
+    if predicted_material in material_bins:
+        material, bin_name = material_bins[predicted_material]
+        points = 10
+        st.success(f"Predicted Material: **{material}** ✅")
         st.info(f"Place in: **{bin_name}**")
         st.balloons()
-        st.write(f"Points Awarded: **{points}** 🎉")
+        st.markdown(f"<h3 style='color:green;'>Points Awarded: {points} 🎉</h3>", unsafe_allow_html=True)
     else:
         st.warning("Material not recognized. Try another image.")
+
+# -----------------------
+# Optional: Footer
+# -----------------------
+st.markdown("---")
+st.markdown("💡 Demo by TrashDNA | TRBS 2025")
