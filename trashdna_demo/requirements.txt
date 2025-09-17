@@ -2,3 +2,7 @@ streamlit
 torch
 torchvision
 Pillow
+ftfy
+regex
+tqdm
+openai-clip @ git+https://github.com/openai/CLIP.git
