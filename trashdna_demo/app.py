@@ -29,12 +29,12 @@ material_classes = [
 ]
 
 material_bins = {
-    "Plastic bottle": ("Plastic", "Recycle Bin A", "icons/plastic.png"),
-    "Cardboard box": ("Paper/Cardboard", "Recycle Bin B", "icons/cardboard.png"),
-    "Foil pack": ("Metal/Foil", "Recycle Bin C", "icons/foil.png"),
-    "Paper bag": ("Paper/Cardboard", "Recycle Bin B", "icons/cardboard.png"),
-    "Metal can": ("Metal/Foil", "Recycle Bin C", "icons/metal.png"),
-    "Glass bottle": ("Glass", "Recycle Bin D", "icons/glass.png")
+    "Plastic bottle": ("Plastic", "Recycle Bin A", "icons/plastic.jpg"),
+    "Cardboard box": ("Paper/Cardboard", "Recycle Bin B", "icons/cardboard.jpg"),
+    "Foil pack": ("Metal/Foil", "Recycle Bin C", "icons/foil.jpg"),
+    "Paper bag": ("Paper/Cardboard", "Recycle Bin B", "icons/cardboard.jpg"),
+    "Metal can": ("Metal/Foil", "Recycle Bin C", "icons/metal.jpg"),
+    "Glass bottle": ("Glass", "Recycle Bin D", "icons/glass.jpg")
 }
 
 # -----------------------
@@ -92,3 +92,4 @@ if uploaded_file is not None:
 # -----------------------
 st.markdown("---")
 st.markdown(f"<h2 style='text-align:center; color:blue;'>🏆 Total Points this session: {st.session_state.total_points}</h2>", unsafe_allow_html=True)
+
